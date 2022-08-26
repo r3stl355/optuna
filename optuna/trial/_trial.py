@@ -52,6 +52,7 @@ class Trial(BaseTrial):
         self.storage = self.study._storage
 
         self._init_relative_params()
+        self.experiment = None
 
     def _init_relative_params(self) -> None:
 
@@ -599,6 +600,9 @@ class Trial(BaseTrial):
             param_value_in_internal_repr = distribution.to_internal_repr(param_value)
             storage.set_trial_param(trial_id, name, param_value_in_internal_repr, distribution)
 
+        if self.experiment is not None:
+            self.experiment.log_parameter(name, param_value)
+            
         return param_value
 
     def _is_fixed_param(self, name: str, distribution: BaseDistribution) -> bool:

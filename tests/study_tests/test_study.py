@@ -1,3 +1,4 @@
+import os
 import copy
 import itertools
 import multiprocessing
@@ -1543,3 +1544,45 @@ def test_study_summary_datetime_start_calculation(storage_mode: str) -> None:
         study.enqueue_trial(params={"x": 1}, skip_if_exists=False)
         summaries = get_all_study_summaries(study._storage, include_best_trial=True)
         assert summaries[0].datetime_start is not None
+
+
+class MockExperiment:
+    def __init__(self):
+        self.name = None
+        self.other = None
+        self.tag = None
+        self.packages_set = False
+        self.metrics = []
+        self.parameters = []
+        
+    def set_name(self, name): 
+        self.name = name
+        
+    def log_other(self, name, value):
+        self.other = f'{name}={value}'
+    
+    def add_tag(self, tag):
+        self.tag = tag
+    
+    def set_pip_packages(self):
+        self.packages_set = True
+    
+    def log_metric(self, name, value):  
+        self.metrics.append((name, value))
+        
+    def log_parameter(self, name, value):  
+        self.parameters.append((name, value))   
+
+@patch("comet_ml.Experiment")
+@patch.dict(os.environ, {"COMET_API_KEY": "some_api_key"})
+def test_optimize_with_comet(mock)  -> None:
+    experiment = MockExperiment()
+    mock.return_value = experiment
+    
+    study = create_study()
+    study.optimize(func, n_trials=1)
+    
+    assert experiment.name == 'OptunaAutoLog_trial-0'
+    assert len(experiment.metrics) > 0
+    
+    

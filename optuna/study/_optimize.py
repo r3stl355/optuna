@@ -193,7 +193,33 @@ def _run_trial(
 
     with get_heartbeat_thread(trial._trial_id, study._storage):
         try:
+            # Attempt to silently log the experiment if Comet is configured
+            api_key = os.environ.get("COMET_API_KEY")
+            if api_key:
+                try:
+                    import comet_ml
+
+                    experiment = comet_ml.Experiment(
+                        api_key=api_key,
+                        project_name=os.environ.get(
+                            "COMET_PROJECT", f"optuna-auto"
+                        ),
+                    )
+                    experiment.set_name(f"OptunaAutoLog_trial-{trial.number}") 
+                    experiment.log_other("Trial", trial.number)
+                    experiment.add_tag("Optuna auto logging to Comet")
+                    experiment.set_pip_packages()
+                    
+                    # Trial has an `experiment` property, set it to be the Comet one
+                    trial.experiment = experiment
+                except Exception as e:
+                    # Some proper error is appropriate here - Comet API key is defined but something gone wrong
+                    print(e)
             value_or_values = func(trial)
+            
+            if trial.experiment:
+                trial.experiment.log_metric('score', value=value_or_values)
+                
         except exceptions.TrialPruned as e:
             # TODO(mamu): Handle multi-objective cases.
             state = TrialState.PRUNED
